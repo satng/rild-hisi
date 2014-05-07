@@ -3,6 +3,8 @@
 LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
+LOCAL_C_INCLUDES :=$(LOCAL_PATH)/../include
+
 LOCAL_SRC_FILES:= \
     ril.cpp \
     ril_event.cpp
@@ -10,15 +12,16 @@ LOCAL_SRC_FILES:= \
 LOCAL_SHARED_LIBRARIES := \
     libutils \
     libbinder \
-    libcutils \
-    libhardware_legacy
+    libcutils
 
 LOCAL_CFLAGS :=
 
-LOCAL_MODULE:= libril
+LOCAL_MODULE:= libril_sp
+LOCAL_MODULE_TAGS := optional
 
 LOCAL_LDLIBS += -lpthread
 
+LOCAL_PRELINK_MODULE := false
 include $(BUILD_SHARED_LIBRARY)
 
 
@@ -36,7 +39,8 @@ LOCAL_STATIC_LIBRARIES := \
 
 LOCAL_CFLAGS :=
 
-LOCAL_MODULE:= libril_static
+LOCAL_MODULE:= libril_spstatic
+LOCAL_MODULE_TAGS := optional
 
 LOCAL_LDLIBS += -lpthread
 

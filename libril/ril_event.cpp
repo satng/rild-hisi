@@ -75,17 +75,17 @@ static struct ril_event pending_list;
 #define DEBUG 0
 
 #if DEBUG
-#define dlog(x...) LOGD( x )
+#define dlog(x...) printf( x )
 static void dump_event(struct ril_event * ev)
 {
-    dlog("~~~~ Event %x ~~~~", (unsigned int)ev);
-    dlog("     next    = %x", (unsigned int)ev->next);
-    dlog("     prev    = %x", (unsigned int)ev->prev);
-    dlog("     fd      = %d", ev->fd);
-    dlog("     pers    = %d", ev->persist);
-    dlog("     timeout = %ds + %dus", (int)ev->timeout.tv_sec, (int)ev->timeout.tv_usec);
-    dlog("     func    = %x", (unsigned int)ev->func);
-    dlog("     param   = %x", (unsigned int)ev->param);
+    dlog("~~~~ Event %x ~~~~\n", (unsigned int)ev);
+    dlog("     next    = %x\n", (unsigned int)ev->next);
+    dlog("     prev    = %x\n", (unsigned int)ev->prev);
+    dlog("     fd      = %d\n", ev->fd);
+    dlog("     pers    = %d\n", ev->persist);
+    dlog("     timeout = %ds + %dus\n", (int)ev->timeout.tv_sec, (int)ev->timeout.tv_usec);
+    dlog("     func    = %x\n", (unsigned int)ev->func);
+    dlog("     param   = %x\n", (unsigned int)ev->param);
     dlog("~~~~~~~~~~~~~~~~~~");
 }
 #else
@@ -124,7 +124,7 @@ static void addToList(struct ril_event * ev, struct ril_event * list)
 
 static void removeFromList(struct ril_event * ev)
 {
-    dlog("~~~~ Removing event ~~~~");
+    dlog("~~~~ Removing event ~~~~\n");
     dump_event(ev);
 
     ev->next->prev = ev->prev;
@@ -152,13 +152,13 @@ static void removeWatch(struct ril_event * ev, int index)
             }
         }
         nfds = n + 1;
-        dlog("~~~~ nfds = %d ~~~~", nfds);
+        dlog("~~~~ nfds = %d ~~~~\n", nfds);
     }
 }
 
 static void processTimeouts()
 {
-    dlog("~~~~ +processTimeouts ~~~~");
+    dlog("~~~~ +processTimeouts ~~~~\n");
     MUTEX_ACQUIRE();
     struct timeval now;
     struct ril_event * tev = timer_list.next;
@@ -167,22 +167,22 @@ static void processTimeouts()
     getNow(&now);
     // walk list, see if now >= ev->timeout for any events
 
-    dlog("~~~~ Looking for timers <= %ds + %dus ~~~~", (int)now.tv_sec, (int)now.tv_usec);
+    dlog("~~~~ Looking for timers <= %ds + %dus ~~~~\n", (int)now.tv_sec, (int)now.tv_usec);
     while ((tev != &timer_list) && (timercmp(&now, &tev->timeout, >))) {
         // Timer expired
-        dlog("~~~~ firing timer ~~~~");
+        dlog("~~~~ firing timer ~~~~\n");
         next = tev->next;
         removeFromList(tev);
         addToList(tev, &pending_list);
         tev = next;
     }
     MUTEX_RELEASE();
-    dlog("~~~~ -processTimeouts ~~~~");
+    dlog("~~~~ -processTimeouts ~~~~\n");
 }
 
 static void processReadReadies(fd_set * rfds, int n)
 {
-    dlog("~~~~ +processReadReadies (%d) ~~~~", n);
+    dlog("~~~~ +processReadReadies (%d) ~~~~\n", n);
     MUTEX_ACQUIRE();
 
     for (int i = 0; (i < MAX_FD_EVENTS) && (n > 0); i++) {
@@ -197,20 +197,21 @@ static void processReadReadies(fd_set * rfds, int n)
     }
 
     MUTEX_RELEASE();
-    dlog("~~~~ -processReadReadies (%d) ~~~~", n);
+    dlog("~~~~ -processReadReadies (%d) ~~~~\n", n);
 }
 
 static void firePending()
 {
-    dlog("~~~~ +firePending ~~~~");
+    dlog("~~~~ +firePending ~~~~\n");
     struct ril_event * ev = pending_list.next;
     while (ev != &pending_list) {
         struct ril_event * next = ev->next;
+        dlog("~~~~ -firePending  while fd:%d~~~~\n",ev->fd);
         removeFromList(ev);
         ev->func(ev->fd, 0, ev->param);
         ev = next;
     }
-    dlog("~~~~ -firePending ~~~~");
+    dlog("~~~~ -firePending ~~~~\n");
 }
 
 static int calcNextTimeout(struct timeval * tv)
@@ -226,8 +227,8 @@ static int calcNextTimeout(struct timeval * tv)
         return -1;
     }
 
-    dlog("~~~~ now = %ds + %dus ~~~~", (int)now.tv_sec, (int)now.tv_usec);
-    dlog("~~~~ next = %ds + %dus ~~~~",
+    dlog("~~~~ now = %ds + %dus ~~~~\n", (int)now.tv_sec, (int)now.tv_usec);
+    dlog("~~~~ next = %ds + %dus ~~~~\n",
             (int)tev->timeout.tv_sec, (int)tev->timeout.tv_usec);
     if (timercmp(&tev->timeout, &now, >)) {
         timersub(&tev->timeout, &now, tv);
@@ -252,7 +253,7 @@ void ril_event_init()
 // Initialize an event
 void ril_event_set(struct ril_event * ev, int fd, bool persist, ril_event_cb func, void * param)
 {
-    dlog("~~~~ ril_event_set %x ~~~~", (unsigned int)ev);
+    dlog("~~~~ ril_event_set %x ~~~~\n", (unsigned int)ev);
     memset(ev, 0, sizeof(struct ril_event));
     ev->fd = fd;
     ev->index = -1;
@@ -265,28 +266,28 @@ void ril_event_set(struct ril_event * ev, int fd, bool persist, ril_event_cb fun
 // Add event to watch list
 void ril_event_add(struct ril_event * ev)
 {
-    dlog("~~~~ +ril_event_add ~~~~");
+    dlog("~~~~ +ril_event_add ~~~~\n");
     MUTEX_ACQUIRE();
     for (int i = 0; i < MAX_FD_EVENTS; i++) {
         if (watch_table[i] == NULL) {
             watch_table[i] = ev;
             ev->index = i;
-            dlog("~~~~ added at %d ~~~~", i);
-            dump_event(ev);
+            dlog("~~~~ added at %d ~~~~\n", i);
+            // dump_event(ev);
             FD_SET(ev->fd, &readFds);
             if (ev->fd >= nfds) nfds = ev->fd+1;
-            dlog("~~~~ nfds = %d ~~~~", nfds);
+            dlog("~~~~ nfds = %d ~~~~\n", nfds);
             break;
         }
     }
     MUTEX_RELEASE();
-    dlog("~~~~ -ril_event_add ~~~~");
+    dlog("~~~~ -ril_event_add ~~~~\n");
 }
 
 // Add timer event
 void ril_timer_add(struct ril_event * ev, struct timeval * tv)
 {
-    dlog("~~~~ +ril_timer_add ~~~~");
+    dlog("~~~~ +ril_timer_add ~~~~\n");
     MUTEX_ACQUIRE();
 
     struct ril_event * list;
@@ -309,13 +310,13 @@ void ril_timer_add(struct ril_event * ev, struct timeval * tv)
     }
 
     MUTEX_RELEASE();
-    dlog("~~~~ -ril_timer_add ~~~~");
+    dlog("~~~~ -ril_timer_add ~~~~\n");
 }
 
 // Remove event from watch or timer list
 void ril_event_del(struct ril_event * ev)
 {
-    dlog("~~~~ +ril_event_del ~~~~");
+    dlog("~~~~ +ril_event_del event= %x ~~~~\n", (unsigned int)ev);
     MUTEX_ACQUIRE();
 
     if (ev->index < 0 || ev->index >= MAX_FD_EVENTS) {
@@ -325,7 +326,7 @@ void ril_event_del(struct ril_event * ev)
     removeWatch(ev, ev->index);
 
     MUTEX_RELEASE();
-    dlog("~~~~ -ril_event_del ~~~~");
+    dlog("~~~~ -ril_event_del ~~~~\n");
 }
 
 #if DEBUG
@@ -334,7 +335,7 @@ static void printReadies(fd_set * rfds)
     for (int i = 0; (i < MAX_FD_EVENTS); i++) {
         struct ril_event * rev = watch_table[i];
         if (rev != NULL && FD_ISSET(rev->fd, rfds)) {
-          dlog("DON: fd=%d is ready", rev->fd);
+          dlog("DON: fd=%d is ready\n", rev->fd);
         }
     }
 }
@@ -356,20 +357,20 @@ void ril_event_loop()
         memcpy(&rfds, &readFds, sizeof(fd_set));
         if (-1 == calcNextTimeout(&tv)) {
             // no pending timers; block indefinitely
-            dlog("~~~~ no timers; blocking indefinitely ~~~~");
+            dlog("~~~~ no timers; blocking indefinitely ~~~~\n");
             ptv = NULL;
         } else {
-            dlog("~~~~ blocking for %ds + %dus ~~~~", (int)tv.tv_sec, (int)tv.tv_usec);
+            dlog("~~~~ blocking for %ds + %dus ~~~~\n", (int)tv.tv_sec, (int)tv.tv_usec);
             ptv = &tv;
         }
         printReadies(&rfds);
         n = select(nfds, &rfds, NULL, NULL, ptv);
         printReadies(&rfds);
-        dlog("~~~~ %d events fired ~~~~", n);
+        dlog("~~~~ %d events fired ~~~~\n", n);
         if (n < 0) {
             if (errno == EINTR) continue;
 
-            LOGE("ril_event: select error (%d)", errno);
+            printf("ril_event: select error (%d), %s\n", errno, strerror(errno));
             // bail?
             return;
         }

@@ -69,7 +69,7 @@ void  AT_DUMP(const char*  prefix, const char*  buff, int  len)
 {
     if (len < 0)
         len = strlen(buff);
-    LOGD("%.*s", len, buff);
+        printf("%s %s,%d\n",prefix, buff, len);
 }
 #endif
 
@@ -128,7 +128,7 @@ static void sleepMsec(long long msec)
 static void addIntermediate(const char *line)
 {
     ATLine *p_new;
-
+   printf("atchannel.c: func:%s,LINE=%d\n",__func__,__LINE__);
     p_new = (ATLine  *) malloc(sizeof(ATLine));
 
     p_new->line = strdup(line);
@@ -182,6 +182,7 @@ static int isFinalResponseSuccess(const char *line)
 
     for (i = 0 ; i < NUM_ELEMS(s_finalResponsesSuccess) ; i++) {
         if (strStartsWith(line, s_finalResponsesSuccess[i])) {
+            printf("isFinalResponseSuccess %s\n", s_finalResponsesSuccess[i]);
             return 1;
         }
     }
@@ -213,12 +214,13 @@ static int isSMSUnsolicited(const char *line)
 {
     size_t i;
 
+#if 0
     for (i = 0 ; i < NUM_ELEMS(s_smsUnsoliciteds) ; i++) {
         if (strStartsWith(line, s_smsUnsoliciteds[i])) {
             return 1;
         }
     }
-
+#endif
     return 0;
 }
 
@@ -233,6 +235,7 @@ static void handleFinalResponse(const char *line)
 
 static void handleUnsolicited(const char *line)
 {
+    printf("atchannel.c: func:%s,LINE=%d\n",__func__,__LINE__);
     if (s_unsolHandler != NULL) {
         s_unsolHandler(line, NULL);
     }
@@ -241,7 +244,9 @@ static void handleUnsolicited(const char *line)
 static void processLine(const char *line)
 {
     pthread_mutex_lock(&s_commandmutex);
-
+    printf("atchannel.c: func:%s,LINE=%d\n",__func__,__LINE__);
+    if(line != NULL)
+        printf("processLine: %s\n", line);
     if (sp_response == NULL) {
         /* no command pending */
         handleUnsolicited(line);
@@ -264,6 +269,7 @@ static void processLine(const char *line)
             if (sp_response->p_intermediates == NULL
                 && isdigit(line[0])
             ) {
+                    printf("atchannel.c: func:%s,LINE=%d\n",__func__,__LINE__);
                 addIntermediate(line);
             } else {
                 /* either we already have an intermediate response or
@@ -275,13 +281,16 @@ static void processLine(const char *line)
             if (sp_response->p_intermediates == NULL
                 && strStartsWith (line, s_responsePrefix)
             ) {
+                    printf("atchannel.c: func:%s,LINE=%d\n",__func__,__LINE__);
                 addIntermediate(line);
             } else {
+                    printf("atchannel.c: func:%s,LINE=%d\n",__func__,__LINE__);
                 /* we already have an intermediate response */
                 handleUnsolicited(line);
             }
             break;
         case MULTILINE:
+            printf("atchannel.c: func:%s,LINE=%d\n",__func__,__LINE__);
             if (strStartsWith (line, s_responsePrefix)) {
                 addIntermediate(line);
             } else {
@@ -290,7 +299,7 @@ static void processLine(const char *line)
         break;
 
         default: /* this should never be reached */
-            LOGE("Unsupported AT command type %d\n", s_type);
+            printf("Unsupported AT command type %d\n",line);
             handleUnsolicited(line);
         break;
     }
@@ -371,7 +380,7 @@ static const char *readline()
 
     while (p_eol == NULL) {
         if (0 == MAX_AT_RESPONSE - (p_read - s_ATBuffer)) {
-            LOGE("ERROR: Input line exceeded buffer\n");
+            printf("ERROR: Input line exceeded buffer\n");
             /* ditch buffer and start over again */
             s_ATBufferCur = s_ATBuffer;
             *s_ATBufferCur = '\0';
@@ -398,9 +407,9 @@ static const char *readline()
         } else if (count <= 0) {
             /* read error encountered or EOF reached */
             if(count == 0) {
-                LOGD("atchannel: EOF reached");
+                printf("atchannel: EOF reached\n");
             } else {
-                LOGD("atchannel: read error %s", strerror(errno));
+                printf("atchannel: read error %s\n", strerror(errno));
             }
             return NULL;
         }
@@ -413,7 +422,7 @@ static const char *readline()
     s_ATBufferCur = p_eol + 1; /* this will always be <= p_read,    */
                               /* and there will be a \0 at *p_read */
 
-    LOGD("AT< %s\n", ret);
+    printf("AT< %s\n", ret);
     return ret;
 }
 
@@ -496,10 +505,11 @@ static int writeline (const char *s)
     ssize_t written;
 
     if (s_fd < 0 || s_readerClosed > 0) {
+        printf("AT_ERROR_CHANNEL_CLOSED, s_fd:%d, s_readerClosed:%d\n\n\n",s_fd,s_readerClosed);
         return AT_ERROR_CHANNEL_CLOSED;
     }
 
-    LOGD("AT> %s\n", s);
+    printf("AT> %s\n\n", s);
 
     AT_DUMP( ">> ", s, strlen(s) );
 
@@ -538,7 +548,7 @@ static int writeCtrlZ (const char *s)
         return AT_ERROR_CHANNEL_CLOSED;
     }
 
-    LOGD("AT> %s^Z\n", s);
+    printf("AT> %s^Z\n\n", s);
 
     AT_DUMP( ">* ", s, strlen(s) );
 
@@ -732,8 +742,8 @@ static int at_send_command_full_nolock (const char *command, ATCommandType type,
         goto error;
     }
 
+    printf("at_send_command_full_nolock:  %s\n", command);
     err = writeline (command);
-
     if (err < 0) {
         goto error;
     }
@@ -759,7 +769,6 @@ static int at_send_command_full_nolock (const char *command, ATCommandType type,
         } else {
             err = pthread_cond_wait(&s_commandcond, &s_commandmutex);
         }
-
         if (err == ETIMEDOUT) {
             err = AT_ERROR_TIMEOUT;
             goto error;
@@ -767,8 +776,10 @@ static int at_send_command_full_nolock (const char *command, ATCommandType type,
     }
 
     if (pp_outResponse == NULL) {
+        printf("%s:%s:%d\n", __FILE__,__func__,__LINE__);
         at_response_free(sp_response);
     } else {
+        printf("%s:%s:%d\n", __FILE__,__func__,__LINE__);
         /* line reader stores intermediate responses in reverse order */
         reverseIntermediates(sp_response);
         *pp_outResponse = sp_response;
@@ -780,9 +791,10 @@ static int at_send_command_full_nolock (const char *command, ATCommandType type,
         err = AT_ERROR_CHANNEL_CLOSED;
         goto error;
     }
-
+        printf("%s:%s:%d\n", __FILE__,__func__,__LINE__);
     err = 0;
 error:
+        printf("%s:%s:%d\n", __FILE__,__func__,__LINE__);
     clearPendingCommand();
 
     return err;

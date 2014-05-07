@@ -121,13 +121,15 @@ int main(int argc, char **argv)
             usage(argv[0]);
         }
     }
-
+printf("rild: %s:%d, rilLibPath=%s\n",__func__, __LINE__,rilLibPath);
     if (rilLibPath == NULL) {
         if ( 0 == property_get(LIB_PATH_PROPERTY, libPath, NULL)) {
+            printf("rild: %s:%d\n",__func__, __LINE__);
             // No lib sepcified on the command line, and nothing set in props.
             // Assume "no-ril" case.
             goto done;
         } else {
+            printf("rild: %s:%d\n",__func__, __LINE__);
             rilLibPath = libPath;
         }
     }
@@ -147,21 +149,21 @@ int main(int argc, char **argv)
         int           fd = open("/proc/cmdline",O_RDONLY);
 
         if (fd < 0) {
-            LOGD("could not open /proc/cmdline:%s", strerror(errno));
+            printf("could not open /proc/cmdline:%s", strerror(errno));
             goto OpenLib;
         }
-
+printf("Rild.c: LINE=%d\n",__LINE__);
         do {
             len = read(fd,buffer,sizeof(buffer)); }
         while (len == -1 && errno == EINTR);
 
         if (len < 0) {
-            LOGD("could not read /proc/cmdline:%s", strerror(errno));
+            printf("could not read /proc/cmdline:%s", strerror(errno));
             close(fd);
             goto OpenLib;
         }
         close(fd);
-
+printf("Rild.c: LINE=%d\n",__LINE__);
         if (strstr(buffer, "android.qemud=") != NULL)
         {
             /* the qemud daemon is launched after rild, so
@@ -190,7 +192,7 @@ int main(int argc, char **argv)
                     done = 1;
                     break;
                 }
-                LOGD("could not connect to %s socket: %s",
+                printf("could not connect to %s socket: %s",
                     QEMUD_SOCKET_NAME, strerror(errno));
                 if (--tries == 0)
                     break;
@@ -217,14 +219,15 @@ int main(int argc, char **argv)
             if (q != NULL)
                 *q = 0;
 
-            snprintf( arg_device, sizeof(arg_device), DEV_PREFIX "%s", p );
+            // snprintf( arg_device, sizeof(arg_device), DEV_PREFIX "%s", p );
+            snprintf( arg_device, sizeof(arg_device), DEV_PREFIX "appvcom", p );
             arg_device[sizeof(arg_device)-1] = 0;
             arg_overrides[1] = "-d";
             arg_overrides[2] = arg_device;
             done = 1;
 
         } while (0);
-
+printf("Rild: done=%d, arg_overrides=%s\n",done, arg_overrides);
         if (done) {
             argv = arg_overrides;
             argc = 3;
@@ -232,7 +235,7 @@ int main(int argc, char **argv)
             hasLibArgs = 1;
             rilLibPath = REFERENCE_RIL_PATH;
 
-            LOGD("overriding with %s %s", arg_overrides[1], arg_overrides[2]);
+            printf("overriding with %s %s", arg_overrides[1], arg_overrides[2]);
         }
     }
 OpenLib:
@@ -274,7 +277,7 @@ OpenLib:
     RIL_register(funcs);
 
 done:
-
+printf("rild: %s:%d\n",__func__, __LINE__);
     while(1) {
         // sleep(UINT32_MAX) seems to return immediately on bionic
         sleep(0x00ffffff);

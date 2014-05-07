@@ -2972,6 +2972,8 @@ typedef struct {
  */
 #define RIL_REQUEST_REPORT_STK_SERVICE_IS_RUNNING 103
 
+//TJD add  for v7r1
+#define RIL_REQUEST_GET_PORT   104
 /***********************************************************************/
 
 

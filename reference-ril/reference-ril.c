@@ -40,7 +40,7 @@
 #define MAX_AT_RESPONSE 0x1000
 
 /* pathname returned from RIL_REQUEST_SETUP_DATA_CALL / RIL_REQUEST_SETUP_DEFAULT_PDP */
-#define PPP_TTY_PATH "/dev/omap_csmi_tty1"
+#define PPP_TTY_PATH "/dev/appvcom"
 
 #ifdef USE_TI_COMMANDS
 
@@ -205,7 +205,7 @@ static int callFromCLCCLine(char *line, RIL_Call *p_call)
     return 0;
 
 error:
-    LOGE("invalid CLCC line\n");
+    printf("invalid CLCC line\n");
     return -1;
 }
 
@@ -230,6 +230,8 @@ static void onRadioPowerOn()
 /** do post- SIM ready initialization */
 static void onSIMReady()
 {
+    // TJD
+    #if 0
     at_send_command_singleline("AT+CSMS=1", "+CSMS:", NULL);
     /*
      * Always send SMS messages directly to the TE
@@ -242,6 +244,7 @@ static void onSIMReady()
      * bfr = 1  // flush buffer
      */
     at_send_command("AT+CNMI=1,2,2,1,1", NULL);
+    #endif
 }
 
 static void requestRadioPower(void *data, size_t datalen, RIL_Token t)
@@ -292,6 +295,47 @@ static void requestDataCallList(void *data, size_t datalen, RIL_Token t)
 {
     requestOrSendDataCallList(&t);
 }
+
+static void requestPortList(void *data, size_t datalen, RIL_Token t)
+{
+    ATResponse *p_response = NULL;
+    int err;
+    char *response[10];
+    char *line, *p;
+    int commas;
+    int i;
+
+    err = at_send_command_singleline("AT^SETPORT?", "^SETPORT:", &p_response);
+
+    if (err < 0 || p_response->success == 0) {
+        RIL_onRequestComplete(t, RIL_E_GENERIC_FAILURE, NULL, 0);
+        goto error;
+    }
+
+    line = p_response->p_intermediates->line;
+    /* count number of commas */
+    commas = 0;
+    for (p = line ; *p != '\0' ;p++) {
+        if (*p == ',') commas++;
+    }
+
+    err = at_tok_start(&line);
+    if (err < 0) goto error;
+    for(i=0; i<=commas; i++){
+        err = at_tok_nextstr(&line, &(response[i]));
+        if (err < 0) goto error;
+    }
+
+    RIL_onRequestComplete(t, RIL_E_SUCCESS, response, (commas+1)*sizeof(char*));
+    at_response_free(p_response);
+    return;
+
+error:
+    printf("requestSignalStrength must never return an error when radio is on");
+    RIL_onRequestComplete(t, RIL_E_GENERIC_FAILURE, NULL, 0);
+    at_response_free(p_response);
+}
+
 
 static void requestOrSendDataCallList(RIL_Token *t)
 {
@@ -463,7 +507,7 @@ static void requestQueryNetworkSelectionMode(
     return;
 error:
     at_response_free(p_response);
-    LOGE("requestQueryNetworkSelectionMode must never return error when radio is on");
+    printf("requestQueryNetworkSelectionMode must never return error when radio is on");
     RIL_onRequestComplete(t, RIL_E_GENERIC_FAILURE, NULL, 0);
 }
 
@@ -564,7 +608,7 @@ static void requestGetCurrentCalls(void *data, size_t datalen, RIL_Token t)
                     && p_calls[i].state == RIL_CALL_ACTIVE
                     && s_repollCallsCount < REPOLL_CALLS_COUNT_MAX
             ) {
-                LOGI(
+                printf(
                     "Hit WORKAROUND_ERRONOUS_ANSWER case."
                     " Repoll count: %d\n", s_repollCallsCount);
                 s_repollCallsCount++;
@@ -703,7 +747,7 @@ static void requestSignalStrength(void *data, size_t datalen, RIL_Token t)
     return;
 
 error:
-    LOGE("requestSignalStrength must never return an error when radio is on");
+    printf("requestSignalStrength must never return an error when radio is on");
     RIL_onRequestComplete(t, RIL_E_GENERIC_FAILURE, NULL, 0);
     at_response_free(p_response);
 }
@@ -838,7 +882,7 @@ static void requestRegistrationState(int request, void *data,
 
     return;
 error:
-    LOGE("requestRegistrationState must never return an error when radio is on");
+    printf("requestRegistrationState must never return an error when radio is on");
     RIL_onRequestComplete(t, RIL_E_GENERIC_FAILURE, NULL, 0);
     at_response_free(p_response);
 }
@@ -909,7 +953,7 @@ static void requestOperator(void *data, size_t datalen, RIL_Token t)
 
     return;
 error:
-    LOGE("requestOperator must not return error when radio is on");
+    printf("requestOperator must not return error when radio is on");
     RIL_onRequestComplete(t, RIL_E_GENERIC_FAILURE, NULL, 0);
     at_response_free(p_response);
 }
@@ -979,7 +1023,7 @@ static void requestSetupDataCall(void *data, size_t datalen, RIL_Token t)
     char status[32] = {0};
     int retry = 10;
 
-    LOGD("requesting data connection to APN '%s'", apn);
+    printf("requesting data connection to APN '%s'\n", apn);
 
     fd = open ("/dev/qmi", O_RDWR);
     if (fd >= 0) { /* the device doesn't exist on the emulator */
@@ -994,7 +1038,7 @@ static void requestSetupDataCall(void *data, size_t datalen, RIL_Token t)
 	        } while (written < 0 && errno == EINTR);
 
 	        if (written < 0) {
-                LOGE("### ERROR writing to /dev/qmi");
+                printf("### ERROR writing to /dev/qmi");
                 close(fd);
                 goto error;
             }
@@ -1011,25 +1055,25 @@ static void requestSetupDataCall(void *data, size_t datalen, RIL_Token t)
             } while (rlen < 0 && errno == EINTR);
 
             if (rlen < 0) {
-                LOGE("### ERROR reading from /dev/qmi");
+                printf("### ERROR reading from /dev/qmi");
                 close(fd);
                 goto error;
             } else {
                 status[rlen] = '\0';
-                LOGD("### status: %s", status);
+                printf("### status: %s\n", status);
             }
         } while (strncmp(status, "STATE=up", 8) && strcmp(status, "online") && --retry);
 
         close(fd);
 
         if (retry == 0) {
-            LOGE("### Failed to get data connection up\n");
+            printf("### Failed to get data connection up\n");
 	        goto error;
 		}
 
         qmistatus = system("netcfg rmnet0 dhcp");
 
-        LOGD("netcfg rmnet0 dhcp: status %d\n", qmistatus);
+        printf("netcfg rmnet0 dhcp: status %d\n\n", qmistatus);
 
 	    if (qmistatus < 0) goto error;
 
@@ -1082,7 +1126,7 @@ static void requestSMSAcknowledge(void *data, size_t datalen, RIL_Token t)
     } else if (ackSuccess == 0)  {
         err = at_send_command("AT+CNMA=2", NULL);
     } else {
-        LOGE("unsupported arg to RIL_REQUEST_SMS_ACKNOWLEDGE\n");
+        printf("unsupported arg to RIL_REQUEST_SMS_ACKNOWLEDGE\n");
         goto error;
     }
 
@@ -1212,7 +1256,7 @@ onRequest (int request, void *data, size_t datalen, RIL_Token t)
     ATResponse *p_response;
     int err;
 
-    LOGD("onRequest: %s", requestToString(request));
+    printf("onRequest: %s\n", requestToString(request));
 
     /* Ignore all requests except RIL_REQUEST_GET_SIM_STATUS
      * when RADIO_STATE_UNAVAILABLE.
@@ -1220,6 +1264,7 @@ onRequest (int request, void *data, size_t datalen, RIL_Token t)
     if (sState == RADIO_STATE_UNAVAILABLE
         && request != RIL_REQUEST_GET_SIM_STATUS
     ) {
+                printf("%s:%d %s\n", __FILE__, __LINE__, __func__);
         RIL_onRequestComplete(t, RIL_E_RADIO_NOT_AVAILABLE, NULL, 0);
         return;
     }
@@ -1231,6 +1276,7 @@ onRequest (int request, void *data, size_t datalen, RIL_Token t)
         && !(request == RIL_REQUEST_RADIO_POWER
             || request == RIL_REQUEST_GET_SIM_STATUS)
     ) {
+                printf("%s:%d %s\n", __FILE__, __LINE__, __func__);
         RIL_onRequestComplete(t, RIL_E_RADIO_NOT_AVAILABLE, NULL, 0);
         return;
     }
@@ -1445,12 +1491,12 @@ onRequest (int request, void *data, size_t datalen, RIL_Token t)
             int i;
             const char ** cur;
 
-            LOGD("got OEM_HOOK_STRINGS: 0x%8p %lu", data, (long)datalen);
+            printf("got OEM_HOOK_STRINGS: 0x%8p %lu\n", data, (long)datalen);
 
 
             for (i = (datalen / sizeof (char *)), cur = (const char **)data ;
                     i > 0 ; cur++, i --) {
-                LOGD("> '%s'", *cur);
+                printf("> '%s'\n", *cur);
             }
 
             // echo back strings
@@ -1484,6 +1530,9 @@ onRequest (int request, void *data, size_t datalen, RIL_Token t)
         case RIL_REQUEST_CHANGE_SIM_PIN:
         case RIL_REQUEST_CHANGE_SIM_PIN2:
             requestEnterSimPin(data, datalen, t);
+            break;
+        case RIL_REQUEST_GET_PORT:
+            requestPortList(data, datalen, t);
             break;
 
         default:
@@ -1733,6 +1782,8 @@ static void freeCardStatus(RIL_CardStatus *p_card_status) {
 
 static void pollSIMState (void *param)
 {
+    // TJD
+    #if 0
     ATResponse *p_response;
     int ret;
 
@@ -1758,11 +1809,15 @@ static void pollSIMState (void *param)
             setRadioState(RADIO_STATE_SIM_READY);
         return;
     }
+    #else
+    setRadioState(RADIO_STATE_SIM_READY);
+    #endif
 }
 
 /** returns 1 if on, 0 if off, and -1 on error */
 static int isRadioOn()
 {
+    #if 0  //
     ATResponse *p_response = NULL;
     int err;
     char *line;
@@ -1791,6 +1846,9 @@ error:
 
     at_response_free(p_response);
     return -1;
+    #else
+    return 1;
+    #endif
 }
 
 /**
@@ -1804,70 +1862,70 @@ static void initializeCallback(void *param)
 
     setRadioState (RADIO_STATE_OFF);
 
-    at_handshake();
+/*tjd*/
+//     at_handshake();
 
-    /* note: we don't check errors here. Everything important will
-       be handled in onATTimeout and onATReaderClosed */
+//     /* note: we don't check errors here. Everything important will
+//        be handled in onATTimeout and onATReaderClosed */
 
-    /*  atchannel is tolerant of echo but it must */
-    /*  have verbose result codes */
-    at_send_command("ATE0Q0V1", NULL);
+//     /*  atchannel is tolerant of echo but it must */
+//     /*  have verbose result codes */
+//     at_send_command("ATE0Q0V1", NULL);
 
-    /*  No auto-answer */
-    at_send_command("ATS0=0", NULL);
+//     /*  No auto-answer */
+//     at_send_command("ATS0=0", NULL);
 
-    /*  Extended errors */
-    at_send_command("AT+CMEE=1", NULL);
+//     /*  Extended errors */
+//     at_send_command("AT+CMEE=1", NULL);
 
-    /*  Network registration events */
-    err = at_send_command("AT+CREG=2", &p_response);
+//     /*  Network registration events */
+//     err = at_send_command("AT+CREG=2", &p_response);
 
-    /* some handsets -- in tethered mode -- don't support CREG=2 */
-    if (err < 0 || p_response->success == 0) {
-        at_send_command("AT+CREG=1", NULL);
-    }
+//     /* some handsets -- in tethered mode -- don't support CREG=2 */
+//     if (err < 0 || p_response->success == 0) {
+//         at_send_command("AT+CREG=1", NULL);
+//     }
 
-    at_response_free(p_response);
+//     at_response_free(p_response);
 
-    /*  GPRS registration events */
-    at_send_command("AT+CGREG=1", NULL);
+//     /*  GPRS registration events */
+//     at_send_command("AT+CGREG=1", NULL);
 
-    /*  Call Waiting notifications */
-    at_send_command("AT+CCWA=1", NULL);
+//     /*  Call Waiting notifications */
+//     at_send_command("AT+CCWA=1", NULL);
 
-    /*  Alternating voice/data off */
-    at_send_command("AT+CMOD=0", NULL);
+//     /*  Alternating voice/data off */
+//     at_send_command("AT+CMOD=0", NULL);
 
-    /*  Not muted */
-    at_send_command("AT+CMUT=0", NULL);
+//     /*  Not muted */
+//     at_send_command("AT+CMUT=0", NULL);
 
-    /*  +CSSU unsolicited supp service notifications */
-    at_send_command("AT+CSSN=0,1", NULL);
+//     /*  +CSSU unsolicited supp service notifications */
+//     at_send_command("AT+CSSN=0,1", NULL);
 
-    /*  no connected line identification */
-    at_send_command("AT+COLP=0", NULL);
+//     /*  no connected line identification */
+//     at_send_command("AT+COLP=0", NULL);
 
-    /*  HEX character set */
-    at_send_command("AT+CSCS=\"HEX\"", NULL);
+//     /*  HEX character set */
+//     at_send_command("AT+CSCS=\"HEX\"", NULL);
 
-    /*  USSD unsolicited */
-    at_send_command("AT+CUSD=1", NULL);
+//     /*  USSD unsolicited */
+//     at_send_command("AT+CUSD=1", NULL);
 
-    /*  Enable +CGEV GPRS event notifications, but don't buffer */
-    at_send_command("AT+CGEREP=1,0", NULL);
+//     /*  Enable +CGEV GPRS event notifications, but don't buffer */
+//     at_send_command("AT+CGEREP=1,0", NULL);
 
-    /*  SMS PDU mode */
-    at_send_command("AT+CMGF=0", NULL);
+//     /*  SMS PDU mode */
+//     at_send_command("AT+CMGF=0", NULL);
 
-#ifdef USE_TI_COMMANDS
+// #ifdef USE_TI_COMMANDS
 
-    at_send_command("AT%CPI=3", NULL);
+//     at_send_command("AT%CPI=3", NULL);
 
-    /*  TI specific -- notifications when SMS is ready (currently ignored) */
-    at_send_command("AT%CSTAT=1", NULL);
+//     /*  TI specific -- notifications when SMS is ready (currently ignored) */
+//     at_send_command("AT%CSTAT=1", NULL);
 
-#endif /* USE_TI_COMMANDS */
-
+// #endif /* USE_TI_COMMANDS */
 
     /* assume radio is off on error */
     if (isRadioOn() > 0) {
@@ -1895,7 +1953,7 @@ static void onUnsolicited (const char *s, const char *sms_pdu)
 {
     char *line = NULL;
     int err;
-
+    printf("reference-ril.c: func:%s,LINE=%d\n",__func__,__LINE__);
     /* Ignore unsolicited responses until we're initialized.
      * This is OK because the RIL library will poll for initial state
      */
@@ -1903,17 +1961,17 @@ static void onUnsolicited (const char *s, const char *sms_pdu)
         return;
     }
 
+    printf("process : %s\n", s);
     if (strStartsWith(s, "%CTZV:")) {
         /* TI specific -- NITZ time */
         char *response;
-
         line = strdup(s);
         at_tok_start(&line);
 
         err = at_tok_nextstr(&line, &response);
 
         if (err != 0) {
-            LOGE("invalid NITZ line %s\n", s);
+            printf("invalid NITZ line %s\n", s);
         } else {
             RIL_onUnsolicitedResponse (
                 RIL_UNSOL_NITZ_TIME_RECEIVED,
@@ -1959,12 +2017,17 @@ static void onUnsolicited (const char *s, const char *sms_pdu)
         RIL_requestTimedCallback (onDataCallListChanged, NULL, NULL);
 #endif /* WORKAROUND_FAKE_CGEV */
     }
+    // else if (strStartsWith(s, "^SETPORT:")) {
+    //     RIL_onUnsolicitedResponse (
+    //         RIL_REQUEST_GET_PORT,
+    //         sms_pdu, strlen(sms_pdu));
+    // }
 }
 
 /* Called on command or reader thread */
 static void onATReaderClosed()
 {
-    LOGI("AT channel closed\n");
+    printf("AT channel closed\n");
     at_close();
     s_closed = 1;
 
@@ -1974,7 +2037,7 @@ static void onATReaderClosed()
 /* Called on command thread */
 static void onATTimeout()
 {
-    LOGI("AT channel timeout; closing\n");
+    printf("AT channel timeout; closing\n");
     at_close();
 
     s_closed = 1;
@@ -2053,7 +2116,7 @@ mainLoop(void *param)
         ret = at_open(fd, onUnsolicited);
 
         if (ret < 0) {
-            LOGE ("AT error %d on at_open\n", ret);
+            printf ("AT error %d on at_open\n", ret);
             return 0;
         }
 
@@ -2064,7 +2127,7 @@ mainLoop(void *param)
         sleep(1);
 
         waitForClose();
-        LOGI("Re-opening after close");
+        printf("Re-opening after close");
     }
 }
 
@@ -2089,18 +2152,18 @@ const RIL_RadioFunctions *RIL_Init(const struct RIL_Env *env, int argc, char **a
                     usage(argv[0]);
                     return NULL;
                 }
-                LOGI("Opening loopback port %d\n", s_port);
+                printf("Opening loopback port %d\n", s_port);
             break;
 
             case 'd':
                 s_device_path = optarg;
-                LOGI("Opening tty device %s\n", s_device_path);
+                printf("Opening tty device %s\n", s_device_path);
             break;
 
             case 's':
                 s_device_path   = optarg;
                 s_device_socket = 1;
-                LOGI("Opening socket %s\n", s_device_path);
+                printf("Opening socket %s\n", s_device_path);
             break;
 
             default:
@@ -2134,18 +2197,18 @@ int main (int argc, char **argv)
                 if (s_port == 0) {
                     usage(argv[0]);
                 }
-                LOGI("Opening loopback port %d\n", s_port);
+                printf("Opening loopback port %d\n", s_port);
             break;
 
             case 'd':
                 s_device_path = optarg;
-                LOGI("Opening tty device %s\n", s_device_path);
+                printf("Opening tty device %s\n", s_device_path);
             break;
 
             case 's':
                 s_device_path   = optarg;
                 s_device_socket = 1;
-                LOGI("Opening socket %s\n", s_device_path);
+                printf("Opening socket %s\n", s_device_path);
             break;
 
             default:
