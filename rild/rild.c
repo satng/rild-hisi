@@ -121,7 +121,7 @@ int main(int argc, char **argv)
             usage(argv[0]);
         }
     }
-printf("rild: %s:%d, rilLibPath=%s\n",__func__, __LINE__,rilLibPath);
+	printf("rild: %s:%d, rilLibPath=%s\n",__func__, __LINE__,rilLibPath);
     if (rilLibPath == NULL) {
         if ( 0 == property_get(LIB_PATH_PROPERTY, libPath, NULL)) {
             printf("rild: %s:%d\n",__func__, __LINE__);
@@ -152,7 +152,7 @@ printf("rild: %s:%d, rilLibPath=%s\n",__func__, __LINE__,rilLibPath);
             printf("could not open /proc/cmdline:%s", strerror(errno));
             goto OpenLib;
         }
-printf("Rild.c: LINE=%d\n",__LINE__);
+		printf("Rild.c: LINE=%d\n",__LINE__);
         do {
             len = read(fd,buffer,sizeof(buffer)); }
         while (len == -1 && errno == EINTR);
@@ -163,7 +163,7 @@ printf("Rild.c: LINE=%d\n",__LINE__);
             goto OpenLib;
         }
         close(fd);
-printf("Rild.c: LINE=%d\n",__LINE__);
+		printf("Rild.c: LINE=%d\n",__LINE__);
         if (strstr(buffer, "android.qemud=") != NULL)
         {
             /* the qemud daemon is launched after rild, so
@@ -227,7 +227,7 @@ printf("Rild.c: LINE=%d\n",__LINE__);
             done = 1;
 
         } while (0);
-printf("Rild: done=%d, arg_overrides=%s\n",done, arg_overrides);
+		printf("Rild: done=%d, arg_overrides=%s\n",done, arg_overrides);
         if (done) {
             argv = arg_overrides;
             argc = 3;
@@ -277,7 +277,7 @@ OpenLib:
     RIL_register(funcs);
 
 done:
-printf("rild: %s:%d\n",__func__, __LINE__);
+	printf("rild: %s:%d\n",__func__, __LINE__);
     while(1) {
         // sleep(UINT32_MAX) seems to return immediately on bionic
         sleep(0x00ffffff);

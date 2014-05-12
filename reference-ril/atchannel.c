@@ -128,7 +128,7 @@ static void sleepMsec(long long msec)
 static void addIntermediate(const char *line)
 {
     ATLine *p_new;
-   printf("atchannel.c: func:%s,LINE=%d\n",__func__,__LINE__);
+
     p_new = (ATLine  *) malloc(sizeof(ATLine));
 
     p_new->line = strdup(line);
@@ -235,7 +235,6 @@ static void handleFinalResponse(const char *line)
 
 static void handleUnsolicited(const char *line)
 {
-    printf("atchannel.c: func:%s,LINE=%d\n",__func__,__LINE__);
     if (s_unsolHandler != NULL) {
         s_unsolHandler(line, NULL);
     }
@@ -244,7 +243,7 @@ static void handleUnsolicited(const char *line)
 static void processLine(const char *line)
 {
     pthread_mutex_lock(&s_commandmutex);
-    printf("atchannel.c: func:%s,LINE=%d\n",__func__,__LINE__);
+
     if(line != NULL)
         printf("processLine: %s\n", line);
     if (sp_response == NULL) {
@@ -422,7 +421,7 @@ static const char *readline()
     s_ATBufferCur = p_eol + 1; /* this will always be <= p_read,    */
                               /* and there will be a \0 at *p_read */
 
-    printf("AT< %s\n", ret);
+    printf("readline< %s\n", ret);
     return ret;
 }
 
@@ -509,7 +508,7 @@ static int writeline (const char *s)
         return AT_ERROR_CHANNEL_CLOSED;
     }
 
-    printf("AT> %s\n\n", s);
+    printf("writeline AT> %s\n\n", s);
 
     AT_DUMP( ">> ", s, strlen(s) );
 
@@ -548,7 +547,7 @@ static int writeCtrlZ (const char *s)
         return AT_ERROR_CHANNEL_CLOSED;
     }
 
-    printf("AT> %s^Z\n\n", s);
+    printf("writeline AT> %s^Z\n\n", s);
 
     AT_DUMP( ">* ", s, strlen(s) );
 
@@ -791,10 +790,9 @@ static int at_send_command_full_nolock (const char *command, ATCommandType type,
         err = AT_ERROR_CHANNEL_CLOSED;
         goto error;
     }
-        printf("%s:%s:%d\n", __FILE__,__func__,__LINE__);
+
     err = 0;
 error:
-        printf("%s:%s:%d\n", __FILE__,__func__,__LINE__);
     clearPendingCommand();
 
     return err;

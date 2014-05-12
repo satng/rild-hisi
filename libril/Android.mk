@@ -17,7 +17,7 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_CFLAGS :=
 
 LOCAL_MODULE:= libril_sp
-LOCAL_MODULE_TAGS := optional
+# LOCAL_MODULE_TAGS := optional
 
 LOCAL_LDLIBS += -lpthread
 
@@ -40,7 +40,7 @@ LOCAL_STATIC_LIBRARIES := \
 LOCAL_CFLAGS :=
 
 LOCAL_MODULE:= libril_spstatic
-LOCAL_MODULE_TAGS := optional
+# LOCAL_MODULE_TAGS := optional
 
 LOCAL_LDLIBS += -lpthread
 

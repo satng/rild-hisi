@@ -86,7 +86,7 @@ namespace android {
 #define PRINTBUF_SIZE 8096
 
 // Enable RILC log
-#define RILC_LOG 1
+#define RILC_LOG 0
 
 #if RILC_LOG
     #define startRequest           sprintf(printBuf, "(")
@@ -331,7 +331,7 @@ processCommandBuffer(void *buffer, size_t buflen) {
     // status checked at end
     status = p.readInt32(&request);
     status = p.readInt32 (&token);
-    printf("PCB request code %d token %d\n", request, token);
+
     if (status != NO_ERROR) {
         printf("invalid request block\n");
         return 0;
@@ -1187,13 +1187,12 @@ blockingWrite(int fd, const void *buffer, size_t len) {
     const uint8_t *toWrite;
 
     toWrite = (const uint8_t *)buffer;
-    printf("blockingWrite, toWrite:%x, %x, %x, %x\n", toWrite[0], toWrite[1], toWrite[2], toWrite[3]);
+
     while (writeOffset < len) {
         ssize_t written;
         do {
             written = write (fd, toWrite + writeOffset,
                                 len - writeOffset);
-            printf("blockingWrite, written:%d\n", written);
         } while (written < 0 && errno == EINTR);
 
         if (written >= 0) {
@@ -1227,9 +1226,7 @@ sendResponseRaw (const void *data, size_t dataSize) {
 
     pthread_mutex_lock(&s_writeMutex);
 
-    printf("dataSize=%x\n",dataSize);
     header = htonl(dataSize);
-    printf("header=%x\n",header);
 
     ret = blockingWrite(fd, (void *)&header, sizeof(header));
 
@@ -1256,7 +1253,7 @@ static int
 sendResponse (Parcel &p) {
     int32_t response_type,token,r_err,countStrings;
     char **pStrings;
-    // printResponse;
+    printResponse;
         // p.setDataPosition(0);
         // p.readInt32 (&response_type);
         // printf("response_type:%d\n", response_type);
@@ -1280,7 +1277,7 @@ sendResponse (Parcel &p) {
         //         printf("%s,",pStrings[i]);
         //     }
         // }
-        printf("\n");
+        //printf("\n");
     return sendResponseRaw(p.data(), p.dataSize());
 }
 
@@ -1343,12 +1340,10 @@ static int responseStrings(Parcel &p, void *response, size_t responselen) {
         /* each string*/
         startResponse;
         for (int i = 0 ; i < numStrings ; i++) {
-             printf(" %s\n", (char*)p_cur[i]);
+            printf(" %s ", (char*)p_cur[i]);
             appendPrintBuf("%s %s,", printBuf, (char*)p_cur[i]);
-            // printResponse;
             writeStringToParcel (p, p_cur[i]);
         }
-        printResponse;
         removeLastChar;
         closeResponse;
     }
@@ -2279,7 +2274,7 @@ static void listenCallback (int fd, short flags, void *param) {
         rilEventAddWakeup(&s_listen_event);
 	      return;
     }
-printf("%s: s_fdCommand=%d\n",__func__,s_fdCommand);
+
     /* check the credential of the other side and only accept socket from
      * phone process
      */
@@ -2295,7 +2290,7 @@ printf("%s: s_fdCommand=%d\n",__func__,s_fdCommand);
             if (strcmp(pwd->pw_name, PHONE_PROCESS) == 0) {
                 is_phone_socket = 1;
             } else {
-                printf("RILD can't accept socket from process %s", pwd->pw_name);
+                printf("RILD can't accept socket from process %s\n", pwd->pw_name);
             }
         } else {
             printf("Error on getpwuid() errno: %d", errno);
@@ -2358,7 +2353,7 @@ static void debugCallback (int fd, short flags, void *param) {
     int hangupData[1] = {1};
     int number;
     char **args;
-    printf("%s: line=%d\n",__func__,__LINE__);
+
     acceptFD = accept (fd,  (sockaddr *) &peeraddr, &socklen);
 
     if (acceptFD < 0) {
@@ -2387,7 +2382,7 @@ static void debugCallback (int fd, short flags, void *param) {
             freeDebugCallbackArgs(i, args);
             return;
         }
-        printf ("args: %s\n",args[i]);
+
         char * buf = args[i];
         buf[len] = 0;
     }
@@ -2398,11 +2393,9 @@ static void debugCallback (int fd, short flags, void *param) {
             issueLocalRequest(RIL_REQUEST_RESET_RADIO, NULL, 0);
             break;
         case 1:
-        printf("Connection %s\n", requestToString(RIL_REQUEST_RADIO_POWER));
             printf ("Connection on debug port: issuing radio power off.\n");
             data = 0;
             issueLocalRequest(RIL_REQUEST_RADIO_POWER, &data, sizeof(int));
-            printf ("Connection on debug port: issuing radio power off out.\n");
             // Close the socket
             close(s_fdCommand);
             s_fdCommand = -1;
@@ -2624,7 +2617,7 @@ RIL_register (const RIL_RadioFunctions *callbacks) {
         printf("Failed to get socket ' %s ', error:(%s)\n", SOCKET_NAME_RIL, strerror(errno));
         exit(-1);
     }
-    printf("ril.cpp: LINE=%d\n",__LINE__);
+
     ret = listen(s_fdListen, 4);
 
     if (ret < 0) {
@@ -2635,14 +2628,13 @@ RIL_register (const RIL_RadioFunctions *callbacks) {
 #endif
 
 
-printf("%s: s_fdListen=%d\n",__func__,s_fdListen);
     /* note: non-persistent so we can accept only one connection at a time */
     ril_event_set (&s_listen_event, s_fdListen, false,
                 listenCallback, NULL);
 
     rilEventAddWakeup (&s_listen_event);
 
-#if 0
+#if 1
     // start debug interface socket
 
     s_fdDebug = android_get_control_socket(SOCKET_NAME_RIL_DEBUG);

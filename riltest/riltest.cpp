@@ -12,6 +12,7 @@
 using namespace android;
 
 int s_send_at_fd;
+static pthread_t s_tid_reader;
 
 static char *
 strdupReadString(Parcel &p) {
@@ -54,56 +55,35 @@ int sendDataToRild(Parcel &p)
 
         //发送数据内容
         res = send(fd,(const void *)sendData,sendDataLen,0);
-        printf("sendDataLen:%d\n",sendDataLen);
+        // printf("sendDataLen:%d\n",sendDataLen);
         free(sendData);
         return error;
 }
 
-
-int main(int argc, char* argv[])
+static void *readerLoop(void *arg)
 {
-	int fd;
-	int index;
-	int args_len;
-	char args[80];
-	char *stringp="setport?";
-	fd = socket_local_client( "rild",ANDROID_SOCKET_NAMESPACE_ABSTRACT, SOCK_STREAM);
-	if(fd < 0) {
-		printf("create socket failed, %s\n", strerror(errno));
-		return -1;
-	}
-	s_send_at_fd = fd;
-
-	Parcel p;
-	size_t parcel_position;
-	parcel_position = p.dataPosition();
-	p.writeInt32(104);//request
-	p.writeInt32(2);//token
-	p.writeInt32(1);//string count
-	writeStringToParcel(p,(const char*)stringp);
-	sendDataToRild(p);
-	// p.setDataPosition(parcel_position);
-
-        	Parcel recvP;
+       	Parcel recvP;
 	char recvBuffer[500] = {0};
 	int32_t response_type,token,r_err,countStrings;
 	status_t status;
 	size_t datalen;
 	char **pStrings;
-	 while(1){
+	int fd = s_send_at_fd;
+
+	while(1){
 	            // sleep(2);
 	            int recvLen = recv(fd,recvBuffer,4,0);
-	            printf("recvLen:%d\n", recvLen);
+	            // printf("recvLen:%d\n", recvLen);
 	            if(recvLen ==0)
 	                continue;
 
 	            //读取长度
-	            printf("recvBuffer %02x %02x %02x %02x\n",recvBuffer[0],recvBuffer[1],recvBuffer[2],recvBuffer[3]);
+	            // printf("recvBuffer %02x %02x %02x %02x\n",recvBuffer[0],recvBuffer[1],recvBuffer[2],recvBuffer[3]);
 	            int messageLength = ((recvBuffer[0] & 0xff) << 24)
 	                | ((recvBuffer[1] & 0xff) << 16)
 	                | ((recvBuffer[2] & 0xff) << 8)
 	                | (recvBuffer[3] & 0xff);
-	            printf("recv messageLength = %d\n",messageLength);
+	            // printf("recv messageLength = %d\n",messageLength);
 	            memset(recvBuffer, 0, 4);
 	            //读取内容
 	            recvLen = recv(fd,recvBuffer,messageLength,0);
@@ -146,18 +126,56 @@ int main(int argc, char* argv[])
 			    }
 			}
 			printf("\n>>>>>> end\n");
-			sleep(10);
-			p.setDataPosition(0);
-			p.writeInt32(104);//request
-			p.writeInt32(2);//token
-			p.writeInt32(1);//string count
-			writeStringToParcel(p,(const char*)stringp);
-			sendDataToRild(p);
-		}else{
-			continue;
+			// sleep(10);
+			// p.setDataPosition(0);
+			// p.writeInt32(104);//request
+			// p.writeInt32(2);//token
+			// p.writeInt32(1);//string count
+			// writeStringToParcel(p,(const char*)stringp);
+			// sendDataToRild(p);
 		}
 		printf("\n\n\n\n\n\n\n");
-	        }
+	}
+	return NULL;
+}
 
+int main(int argc, char* argv[])
+{
+	int fd;
+	int index;
+	int args_len;
+	int ret;
+	char cmd[20];
+	pthread_t tid;
+	pthread_attr_t attr;
+	Parcel p;
+
+	char args[80];
+	char *stringp="setport?";
+	fd = socket_local_client( "rild",ANDROID_SOCKET_NAMESPACE_ABSTRACT, SOCK_STREAM);
+	if(fd < 0) {
+		printf("create socket failed, %s\n", strerror(errno));
+		return -1;
+	}
+	s_send_at_fd = fd;
+
+
+	pthread_attr_init (&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	ret = pthread_create(&s_tid_reader, &attr, readerLoop, &attr);
+	if (ret < 0) {
+		perror ("pthread_create");
+	}
+
+	while(1){
+		scanf("%s",&cmd);
+		p.setDataPosition(0);
+		p.writeInt32(104);//request
+		p.writeInt32(2);//token
+		p.writeInt32(1);//string count
+		writeStringToParcel(p,(const char*)cmd);
+		sendDataToRild(p);
+		// sleep(3);
+	}
 	return 0;
 }

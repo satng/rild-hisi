@@ -8,7 +8,7 @@ LOCAL_SHARED_LIBRARIES := \
     libcutils
 LOCAL_SRC_FILES := riltest.cpp
 LOCAL_MODULE := riltest 
-LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_TAGS := eng
 include $(BUILD_EXECUTABLE)
 
 
@@ -20,7 +20,7 @@ LOCAL_SHARED_LIBRARIES := \
     libcutils
 LOCAL_SRC_FILES := socket_server.cpp
 LOCAL_MODULE := socket_server 
-LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_TAGS := eng
 include $(BUILD_EXECUTABLE)
 
 include $(CLEAR_VARS)

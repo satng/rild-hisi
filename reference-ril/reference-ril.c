@@ -313,6 +313,7 @@ static void requestPortList(void *data, size_t datalen, RIL_Token t)
     }
 
     line = p_response->p_intermediates->line;
+    #if 0
     /* count number of commas */
     commas = 0;
     for (p = line ; *p != '\0' ;p++) {
@@ -327,6 +328,10 @@ static void requestPortList(void *data, size_t datalen, RIL_Token t)
     }
 
     RIL_onRequestComplete(t, RIL_E_SUCCESS, response, (commas+1)*sizeof(char*));
+    #else
+    response[0] = line;
+    RIL_onRequestComplete(t, RIL_E_SUCCESS, response, sizeof(char*));
+    #endif
     at_response_free(p_response);
     return;
 
@@ -507,7 +512,7 @@ static void requestQueryNetworkSelectionMode(
     return;
 error:
     at_response_free(p_response);
-    printf("requestQueryNetworkSelectionMode must never return error when radio is on");
+    printf("requestQueryNetworkSelectionMode must never return error when radio is on\n");
     RIL_onRequestComplete(t, RIL_E_GENERIC_FAILURE, NULL, 0);
 }
 
@@ -747,7 +752,7 @@ static void requestSignalStrength(void *data, size_t datalen, RIL_Token t)
     return;
 
 error:
-    printf("requestSignalStrength must never return an error when radio is on");
+    printf("requestSignalStrength must never return an error when radio is on\n");
     RIL_onRequestComplete(t, RIL_E_GENERIC_FAILURE, NULL, 0);
     at_response_free(p_response);
 }
@@ -882,7 +887,7 @@ static void requestRegistrationState(int request, void *data,
 
     return;
 error:
-    printf("requestRegistrationState must never return an error when radio is on");
+    printf("requestRegistrationState must never return an error when radio is on\n");
     RIL_onRequestComplete(t, RIL_E_GENERIC_FAILURE, NULL, 0);
     at_response_free(p_response);
 }
@@ -953,7 +958,7 @@ static void requestOperator(void *data, size_t datalen, RIL_Token t)
 
     return;
 error:
-    printf("requestOperator must not return error when radio is on");
+    printf("requestOperator must not return error when radio is on\n");
     RIL_onRequestComplete(t, RIL_E_GENERIC_FAILURE, NULL, 0);
     at_response_free(p_response);
 }
@@ -1038,7 +1043,7 @@ static void requestSetupDataCall(void *data, size_t datalen, RIL_Token t)
 	        } while (written < 0 && errno == EINTR);
 
 	        if (written < 0) {
-                printf("### ERROR writing to /dev/qmi");
+                printf("### ERROR writing to /dev/qmi\n");
                 close(fd);
                 goto error;
             }
@@ -1055,7 +1060,7 @@ static void requestSetupDataCall(void *data, size_t datalen, RIL_Token t)
             } while (rlen < 0 && errno == EINTR);
 
             if (rlen < 0) {
-                printf("### ERROR reading from /dev/qmi");
+                printf("### ERROR reading from /dev/qmi\n");
                 close(fd);
                 goto error;
             } else {
@@ -2017,11 +2022,6 @@ static void onUnsolicited (const char *s, const char *sms_pdu)
         RIL_requestTimedCallback (onDataCallListChanged, NULL, NULL);
 #endif /* WORKAROUND_FAKE_CGEV */
     }
-    // else if (strStartsWith(s, "^SETPORT:")) {
-    //     RIL_onUnsolicitedResponse (
-    //         RIL_REQUEST_GET_PORT,
-    //         sms_pdu, strlen(sms_pdu));
-    // }
 }
 
 /* Called on command or reader thread */
