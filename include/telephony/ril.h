@@ -2973,7 +2973,17 @@ typedef struct {
 #define RIL_REQUEST_REPORT_STK_SERVICE_IS_RUNNING 103
 
 //TJD add  for v7r1
-#define RIL_REQUEST_GET_PORT   104
+/*AT^SETPORT?*/
+#define RIL_REQUEST_SUPPORT_PORTS   104
+/*AT^CGCATT?*/
+#define RIL_REQUEST_PSCS_BIND_STATE   105
+/*AT^NDISDUP=1,1,"CMNET"*/ 
+#define RIL_REQUEST_NDIS_DIAL   106
+ /*AT+CGPADDR*/
+#define RIL_REQUEST_PDP_ADDR   107
+/*AT^DHCP?*/
+#define RIL_REQUEST_DHCP_INFO   108
+
 /***********************************************************************/
 
 
@@ -3391,6 +3401,9 @@ typedef struct {
  */
 #define RIL_UNSOL_RESEND_INCALL_MUTE 1030
 /***********************************************************************/
+
+/*After RIL_REQUEST_NDIS_DIAL, like "^DCONN:1,"IPV4" will report*/
+#define RIL_UNSOL_NDIS_DIAL   1031
 
 
 /**

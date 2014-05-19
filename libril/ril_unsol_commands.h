@@ -44,4 +44,5 @@
     {RIL_UNSOL_CDMA_INFO_REC, responseCdmaInformationRecords, WAKE_PARTIAL},
     {RIL_UNSOL_OEM_HOOK_RAW, responseRaw, WAKE_PARTIAL},
     {RIL_UNSOL_RINGBACK_TONE, responseInts, WAKE_PARTIAL},
-    {RIL_UNSOL_RESEND_INCALL_MUTE, responseVoid, WAKE_PARTIAL}
+    {RIL_UNSOL_RESEND_INCALL_MUTE, responseVoid, WAKE_PARTIAL},
+    {RIL_UNSOL_NDIS_DIAL, responseStrings, DONT_WAKE}

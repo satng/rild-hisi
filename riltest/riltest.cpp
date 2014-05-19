@@ -1,3 +1,5 @@
+#include <telephony/ril.h>
+#include <telephony/ril_cdma_sms.h>
 #include <binder/Parcel.h>
 #include <cutils/jstring.h>
 #include <cutils/sockets.h>
@@ -8,6 +10,21 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <errno.h>
+
+// //TJD add  for v7r1
+// /*AT^SETPORT?*/
+// #define RIL_REQUEST_SUPPORT_PORTS   104
+// /*AT^CGCATT?*/
+// #define RIL_REQUEST_PSCS_BIND_STATE   105
+// /*AT^NDISDUP=1,1,"CMNET"*/ 
+// #define RIL_REQUEST_NDIS_DIAL   106
+// /*AT+CGPADDR*/
+// #define RIL_REQUEST_PDP_ADDR   107
+// /*AT^DHCP?*/
+// #define RIL_REQUEST_DHCP_INFO   108
+
+// #define RIL_UNSOL_NDIS_DIAL   1031
+
 
 using namespace android;
 
@@ -91,38 +108,68 @@ static void *readerLoop(void *arg)
 
 	             status = recvP.readInt32 (&response_type);
 	             status = recvP.readInt32 (&token);
-	             status = recvP.readInt32 (&r_err);
-
 		if(response_type == 1){
-			printf(">>>>>>> It's from RIL_onUnsolicitedResponse\n", r_err);
-			printf("response_type:%d\n", response_type);
-			printf("token:%d\n", token);	
-			printf("r_err:%d\n", r_err);
+			printf(">>>>>>> This  is from RIL_onUnsolicitedResponse\n");
+			if(token == RIL_UNSOL_NDIS_DIAL){
+				status = recvP.readInt32 (&countStrings);
+				printf("countStrings:%d\n", countStrings);
+				if (countStrings == 0) {
+				    // just some non-null pointer
+				    // pStrings = (char **)alloca(sizeof(char *));
+				    // datalen = 0;
+				    continue;
+				} else if (((int)countStrings) == -1) {
+				    // pStrings = NULL;
+				    // datalen = 0;
+				    continue;
+				} else {
+				    datalen = sizeof(char *) * countStrings;
+
+				    pStrings = (char **)alloca(datalen);
+
+				    printf("recv strings:\n");
+				    for (int i = 0 ; i < countStrings ; i++) {
+				        pStrings[i] = strdupReadString(recvP);
+				        printf("%s\n",pStrings[i]);
+				    }
+				}
+			}
+
+			printf("\n>>>>>> end\n");
 		}else if(response_type == 0){
-			printf(">>>>>>>It's from RIL_onRequestComplete \n", r_err);
+		             status = recvP.readInt32 (&r_err);
+
 			printf("response_type:%d\n", response_type);
-			printf("token:%d\n", token);	
-			printf("r_err:%d\n", r_err);
+			printf("token:%d\n", token);			
+		             if(r_err){
+				printf("recv error, r_err:%d\n\n\n\n\n\n", r_err);
+				continue;
+		             }
+			printf(">>>>>>>This is from RIL_onRequestComplete \n", r_err);
+			if(token == RIL_REQUEST_NDIS_DIAL){
+				printf("\n\n\n\n\n\n\n");
+				continue;
+			}
 			status = recvP.readInt32 (&countStrings);
 			printf("countStrings:%d\n", countStrings);
-			if (status != NO_ERROR) {
-				printf("failed to read response\n");
-			}
 			if (countStrings == 0) {
 			    // just some non-null pointer
-			    pStrings = (char **)alloca(sizeof(char *));
-			    datalen = 0;
+			    // pStrings = (char **)alloca(sizeof(char *));
+			    // datalen = 0;
+			    continue;
 			} else if (((int)countStrings) == -1) {
-			    pStrings = NULL;
-			    datalen = 0;
+			    // pStrings = NULL;
+			    // datalen = 0;
+			    continue;
 			} else {
 			    datalen = sizeof(char *) * countStrings;
 
 			    pStrings = (char **)alloca(datalen);
 
+			    printf("recv strings:\n");
 			    for (int i = 0 ; i < countStrings ; i++) {
 			        pStrings[i] = strdupReadString(recvP);
-			        printf("%s,",pStrings[i]);
+			        printf("%s\n",pStrings[i]);
 			    }
 			}
 			printf("\n>>>>>> end\n");
@@ -137,6 +184,41 @@ static void *readerLoop(void *arg)
 		printf("\n\n\n\n\n\n\n");
 	}
 	return NULL;
+}
+
+int test_dhcp(void)
+{
+	Parcel p;
+	p.setDataPosition(0);
+	p.writeInt32(RIL_REQUEST_PSCS_BIND_STATE);//request
+	p.writeInt32(1);//token
+	p.writeInt32(1);//string count
+	writeStringToParcel(p,"?");
+	sendDataToRild(p);
+sleep(3);
+	p.setDataPosition(0);
+	p.writeInt32(RIL_REQUEST_NDIS_DIAL);//request
+	p.writeInt32(2);//token
+	p.writeInt32(1);//string count
+	writeStringToParcel(p,"=1,1,\"CMNET\"");
+	sendDataToRild(p);
+sleep(2);
+	p.setDataPosition(0);
+	p.writeInt32(RIL_REQUEST_PDP_ADDR);//request
+	p.writeInt32(3);//token
+	p.writeInt32(0);//string count
+	// writeStringToParcel(p," ");
+	sendDataToRild(p);
+sleep(2);
+	p.setDataPosition(0);
+	p.writeInt32(RIL_REQUEST_DHCP_INFO);//request
+	p.writeInt32(4);//token
+	p.writeInt32(1);//string count
+	writeStringToParcel(p,"?");
+	sendDataToRild(p);
+sleep(2);
+
+	return 0;
 }
 
 int main(int argc, char* argv[])
@@ -169,12 +251,40 @@ int main(int argc, char* argv[])
 
 	while(1){
 		scanf("%s",&cmd);
-		p.setDataPosition(0);
-		p.writeInt32(104);//request
-		p.writeInt32(2);//token
-		p.writeInt32(1);//string count
-		writeStringToParcel(p,(const char*)cmd);
-		sendDataToRild(p);
+
+		/*test for setport*/
+// 		p.setDataPosition(0);
+// 		p.writeInt32(RIL_REQUEST_SUPPORT_PORTS);//request
+// 		p.writeInt32(2);//token
+// 		p.writeInt32(1);//string count
+// 		writeStringToParcel(p,"?");
+// 		sendDataToRild(p);
+// sleep(2);
+// 		p.setDataPosition(0);
+// 		p.writeInt32(RIL_REQUEST_SUPPORT_PORTS);//request
+// 		p.writeInt32(2);//token
+// 		p.writeInt32(1);//string count
+// 		writeStringToParcel(p,"=?");
+// 		sendDataToRild(p);
+// sleep(2);
+// 		test for cgcatt
+// 		p.setDataPosition(0);
+// 		p.writeInt32(RIL_REQUEST_PSCS_BIND_STATE);//request
+// 		p.writeInt32(2);//token
+// 		p.writeInt32(1);//string count
+// 		writeStringToParcel(p,"?");
+// 		sendDataToRild(p);
+// sleep(2);
+// 		p.setDataPosition(0);
+// 		p.writeInt32(RIL_REQUEST_PSCS_BIND_STATE);//request
+// 		p.writeInt32(2);//token
+// 		p.writeInt32(1);//string count
+// 		writeStringToParcel(p,"=?");
+// 		sendDataToRild(p);
+// sleep(2);
+		/*test for get network*/
+		test_dhcp();
+
 		// sleep(3);
 	}
 	return 0;

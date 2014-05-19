@@ -300,19 +300,33 @@ static void requestPortList(void *data, size_t datalen, RIL_Token t)
 {
     ATResponse *p_response = NULL;
     int err;
-    char *response[10];
+    char *response[20];
     char *line, *p;
     int commas;
     int i;
+    ATLine *p_cur;
+    const char**  strings = (const char**)data;
+    char*         cmd = NULL;
 
-    err = at_send_command_singleline("AT^SETPORT?", "^SETPORT:", &p_response);
-
+    if ( datalen == sizeof(char*) ) {
+        asprintf(&cmd, "AT^SETPORT%s",strings[0]);
+    } else{
+        asprintf(&cmd, "AT^SETPORT=?");
+    }
+    err = at_send_command_multiline(cmd, "^SETPORT:", &p_response);
+    free(cmd);
     if (err < 0 || p_response->success == 0) {
         RIL_onRequestComplete(t, RIL_E_GENERIC_FAILURE, NULL, 0);
         goto error;
     }
 
-    line = p_response->p_intermediates->line;
+     for (i = 0, p_cur = p_response->p_intermediates
+            ; p_cur != NULL
+            ; p_cur = p_cur->p_next, i++
+    ) {
+        response[i] = p_cur->line;
+    }
+
     #if 0
     /* count number of commas */
     commas = 0;
@@ -329,14 +343,213 @@ static void requestPortList(void *data, size_t datalen, RIL_Token t)
 
     RIL_onRequestComplete(t, RIL_E_SUCCESS, response, (commas+1)*sizeof(char*));
     #else
-    response[0] = line;
-    RIL_onRequestComplete(t, RIL_E_SUCCESS, response, sizeof(char*));
+
+    // response[0] = line;
+    RIL_onRequestComplete(t, RIL_E_SUCCESS, response, i*sizeof(char*));
     #endif
     at_response_free(p_response);
     return;
 
 error:
-    printf("requestSignalStrength must never return an error when radio is on");
+    printf("requestPortList must never return an error when radio is on");
+    RIL_onRequestComplete(t, RIL_E_GENERIC_FAILURE, NULL, 0);
+    at_response_free(p_response);
+}
+
+static void requestPsCsStat(void *data, size_t datalen, RIL_Token t)
+{
+    ATResponse *p_response = NULL;
+    int err;
+    char *response[10];
+    char *line, *p;
+    int commas;
+    int i;
+    const char**  strings = (const char**)data;
+    char*         cmd = NULL;
+    const char *noline="N";
+
+    if ( datalen == sizeof(char*) ) {
+        asprintf(&cmd, "AT^CGCATT?");
+    } else if(datalen == 2*sizeof(char*)) {
+        asprintf(&cmd, "AT^CGCATT=%s,%s",strings[0], strings[1]);
+    } else{
+        asprintf(&cmd, "AT^CGCATT=?");
+    }
+
+    err = at_send_command_singleline(cmd, "^CGCATT:", &p_response);
+    if(p_response == NULL){
+        err = at_send_command(cmd, &p_response);
+        if (err < 0|| p_response->success == 0) {
+            printf("requestPsCsStat FAIL. ret:%d p_response->success=%d\n", err, p_response->success);
+            RIL_onRequestComplete(t, RIL_E_GENERIC_FAILURE, NULL, 0);
+            at_response_free(p_response);
+            free(cmd);
+            return;
+        }
+        printf("requestPsCsStat ret:%d p_response->success=%d\n", err, p_response->success);
+        RIL_onRequestComplete(t, RIL_E_SUCCESS, &noline, sizeof(char*));
+        at_response_free(p_response);
+        free(cmd);
+        return;
+    }
+    free(cmd);
+    if (err < 0 || p_response->success == 0) {
+        printf("requestPsCsStat FAIL. ret:%d p_response->success=%d\n", err, p_response->success);
+        RIL_onRequestComplete(t, RIL_E_GENERIC_FAILURE, NULL, 0);
+        goto error;
+    }
+    
+    // response[0] = p_response->p_intermediates->line;
+    line = p_response->p_intermediates->line;
+    /* count number of commas */
+    commas = 0;
+    for (p = line ; *p != '\0' ;p++) {
+        if (*p == ',') commas++;
+    }
+
+    err = at_tok_start(&line);
+    if (err < 0) goto error;
+    for(i=0; i<=commas; i++){
+        err = at_tok_nextstr(&line, &(response[i]));
+        if (err < 0) goto error;
+    }
+
+    RIL_onRequestComplete(t, RIL_E_SUCCESS, response, (commas+1)*sizeof(char*));
+    // RIL_onRequestComplete(t, RIL_E_SUCCESS, response, sizeof(char*));
+
+    at_response_free(p_response);
+    return;
+
+error:
+    printf("requestPsCsStat must never return an error when radio is on");
+    RIL_onRequestComplete(t, RIL_E_GENERIC_FAILURE, NULL, 0);
+    at_response_free(p_response);
+}
+
+static void requestNdisDial(void *data, size_t datalen, RIL_Token t)
+{
+    ATResponse *p_response = NULL;
+    int err;
+    char *response[10];
+    char *line, *p;
+    int commas;
+    int i;
+    const char**  strings = (const char**)data;
+    char*         cmd = NULL;
+
+    if ( datalen == sizeof(char*) ) {
+        asprintf(&cmd, "AT^NDISDUP%s",strings[0]);
+    } else{
+        asprintf(&cmd, "AT^NDISDUP=1,1,\"CMNET\"");
+    }
+    err = at_send_command(cmd, NULL);
+
+    free(cmd);
+
+    /* success or failure is ignored by the upper layer here.
+       it will call requestNdisDial and determine success that way */
+    RIL_onRequestComplete(t, RIL_E_SUCCESS, NULL, 0);
+}
+
+static void requestPdpAddr(void *data, size_t datalen, RIL_Token t)
+{
+    ATResponse *p_response = NULL;
+    int err;
+    char *response[10];
+    char *line, *p;
+    int commas;
+    int i;
+    const char**  strings = (const char**)data;
+    char*         cmd = NULL;
+
+    if ( datalen == sizeof(char*) ) {
+        asprintf(&cmd, "AT+CGPADDR%s",strings[0]);
+    } else{
+        asprintf(&cmd, "AT+CGPADDR");
+    }
+    err = at_send_command_singleline(cmd, "+CGPADDR:", &p_response);
+    free(cmd);
+    if (err < 0 || p_response->success == 0) {
+        RIL_onRequestComplete(t, RIL_E_GENERIC_FAILURE, NULL, 0);
+        goto error;
+    }
+
+    if(p_response->p_intermediates != NULL && p_response->p_intermediates->line != NULL) {
+        line = p_response->p_intermediates->line;
+        /* count number of commas */
+        commas = 0;
+        for (p = line ; *p != '\0' ;p++) {
+            if (*p == ',') commas++;
+        }
+
+        err = at_tok_start(&line);
+        if (err < 0) goto error;
+        for(i=0; i<=commas; i++){
+            err = at_tok_nextstr(&line, &(response[i]));
+            if (err < 0) goto error;
+        }
+
+        RIL_onRequestComplete(t, RIL_E_SUCCESS, response, (commas+1)*sizeof(char*));
+    }else{
+        printf("requestPdpAddr : response NULL,:%s \n", cmd);
+        RIL_onRequestComplete(t, RIL_E_SUCCESS, NULL, 0);
+    }
+    at_response_free(p_response);
+    return;
+
+error:
+    printf("requestPdpAddr must never return an error when radio is on");
+    RIL_onRequestComplete(t, RIL_E_GENERIC_FAILURE, NULL, 0);
+    at_response_free(p_response);
+}
+
+static void requestDhcpInfo(void *data, size_t datalen, RIL_Token t)
+{
+    ATResponse *p_response = NULL;
+    int err;
+    char *response[10];
+    char *line, *p;
+    int commas;
+    int i;
+    const char**  strings = (const char**)data;
+    char*         cmd = NULL;
+
+    if ( datalen == sizeof(char*) ) {
+        asprintf(&cmd, "AT^DHCP%s",strings[0]);
+    } else{
+        asprintf(&cmd, "AT^DHCP=?");
+    }
+    err = at_send_command_singleline(cmd, "^DHCP:", &p_response);
+    free(cmd);
+    if (err < 0 || p_response->success == 0) {
+        RIL_onRequestComplete(t, RIL_E_GENERIC_FAILURE, NULL, 0);
+        goto error;
+    }
+
+    if(p_response->p_intermediates != NULL && p_response->p_intermediates->line != NULL) {
+        line = p_response->p_intermediates->line;
+        /* count number of commas */
+        commas = 0;
+        for (p = line ; *p != '\0' ;p++) {
+            if (*p == ',') commas++;
+        }
+
+        err = at_tok_start(&line);
+        if (err < 0) goto error;
+        for(i=0; i<=commas; i++){
+            err = at_tok_nextstr(&line, &(response[i]));
+            if (err < 0) goto error;
+        }
+
+        RIL_onRequestComplete(t, RIL_E_SUCCESS, response, (commas+1)*sizeof(char*));
+    }else{
+        RIL_onRequestComplete(t, RIL_E_SUCCESS, NULL, 0);
+    }
+    at_response_free(p_response);
+    return;
+
+error:
+    printf("requestDhcpInfo must never return an error when radio is on");
     RIL_onRequestComplete(t, RIL_E_GENERIC_FAILURE, NULL, 0);
     at_response_free(p_response);
 }
@@ -1536,10 +1749,22 @@ onRequest (int request, void *data, size_t datalen, RIL_Token t)
         case RIL_REQUEST_CHANGE_SIM_PIN2:
             requestEnterSimPin(data, datalen, t);
             break;
-        case RIL_REQUEST_GET_PORT:
+        case RIL_REQUEST_SUPPORT_PORTS:
             requestPortList(data, datalen, t);
             break;
-
+        case RIL_REQUEST_PSCS_BIND_STATE:
+            requestPsCsStat(data, datalen, t);
+            break;
+        case RIL_REQUEST_NDIS_DIAL:
+            requestNdisDial(data, datalen, t);
+            break;
+        case RIL_REQUEST_PDP_ADDR:
+            //ip
+            requestPdpAddr(data, datalen, t);
+            break;
+        case RIL_REQUEST_DHCP_INFO:
+            requestDhcpInfo(data, datalen, t);
+            break;
         default:
             RIL_onRequestComplete(t, RIL_E_REQUEST_NOT_SUPPORTED, NULL, 0);
             break;
@@ -1967,7 +2192,11 @@ static void onUnsolicited (const char *s, const char *sms_pdu)
     }
 
     printf("process : %s\n", s);
-    if (strStartsWith(s, "%CTZV:")) {
+
+   if (strStartsWith(s, "^DCONN:")) {
+        printf("strStartsWith : %s\n", s);
+        RIL_onUnsolicitedResponse (RIL_UNSOL_NDIS_DIAL,&s, sizeof(char *));
+    } else if (strStartsWith(s, "%CTZV:")) {
         /* TI specific -- NITZ time */
         char *response;
         line = strdup(s);
@@ -2021,7 +2250,12 @@ static void onUnsolicited (const char *s, const char *sms_pdu)
     } else if (strStartsWith(s, "+CME ERROR: 150")) {
         RIL_requestTimedCallback (onDataCallListChanged, NULL, NULL);
 #endif /* WORKAROUND_FAKE_CGEV */
-    }
+    } else if (strStartsWith(s, "%CDCONN:")) {
+        printf("strStartsWith : %s\n", s);
+        RIL_onUnsolicitedResponse (
+            RIL_UNSOL_NDIS_DIAL,
+            sms_pdu, strlen(sms_pdu));
+    } 
 }
 
 /* Called on command or reader thread */

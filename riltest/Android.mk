@@ -47,3 +47,15 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_MODULE:= attest
 LOCAL_MODULE_TAGS := eng
 include $(BUILD_EXECUTABLE)
+
+include $(CLEAR_VARS)
+LOCAL_C_INCLUDES :=$(LOCAL_PATH)/../include
+LOCAL_SRC_FILES:= \
+    rldial.cpp
+LOCAL_SHARED_LIBRARIES := \
+    libutils \
+    libbinder \
+    libcutils
+LOCAL_MODULE:= rldial
+LOCAL_MODULE_TAGS := eng
+include $(BUILD_EXECUTABLE)

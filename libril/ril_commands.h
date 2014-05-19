@@ -118,4 +118,8 @@
     {RIL_REQUEST_SET_SMSC_ADDRESS, dispatchString, responseVoid},
     {RIL_REQUEST_REPORT_SMS_MEMORY_STATUS, dispatchInts, responseVoid},
     {RIL_REQUEST_REPORT_STK_SERVICE_IS_RUNNING, dispatchVoid, responseVoid},
-    {RIL_REQUEST_GET_PORT, dispatchStrings, responseStrings}
+    {RIL_REQUEST_SUPPORT_PORTS, dispatchStrings, responseStrings},
+    {RIL_REQUEST_PSCS_BIND_STATE, dispatchStrings, responseStrings},
+    {RIL_REQUEST_NDIS_DIAL, dispatchStrings, responseVoid},
+    {RIL_REQUEST_PDP_ADDR, dispatchStrings, responseStrings},
+    {RIL_REQUEST_DHCP_INFO, dispatchStrings, responseStrings}    

@@ -359,7 +359,7 @@ processCommandBuffer(void *buffer, size_t buflen) {
     assert (ret == 0);
 
 /*    sLastDispatchedToken = token; */
-    printf("processCommandBuffer  token %d request %s\n",
+    printf("\nprocessCommandBuffer  token %d request %s\n",
                 pRI->token, requestToString(pRI->pCI->requestNumber));
 
     pRI->pCI->dispatchFunction(p, pRI);
@@ -2634,7 +2634,7 @@ RIL_register (const RIL_RadioFunctions *callbacks) {
 
     rilEventAddWakeup (&s_listen_event);
 
-#if 1
+#if 0
     // start debug interface socket
 
     s_fdDebug = android_get_control_socket(SOCKET_NAME_RIL_DEBUG);
@@ -2717,9 +2717,10 @@ RIL_onRequestComplete(RIL_Token t, RIL_Errno e, void *response, size_t responsel
         Parcel p;
          // appendPrintBuf("function 1>>>>>",
          //    pRI->token, requestToString(pRI->pCI->requestNumber));
-         printf("function 1>>>>>\n",
+         printf("function 1>>>>>%d, %s\n",
             pRI->token, requestToString(pRI->pCI->requestNumber));
         p.writeInt32 (RESPONSE_SOLICITED);
+        p.writeInt32 (pRI->pCI->requestNumber); //send back requestNumber(add by tjd)
         p.writeInt32 (pRI->token);
         errorOffset = p.dataPosition();
 
@@ -2730,7 +2731,7 @@ RIL_onRequestComplete(RIL_Token t, RIL_Errno e, void *response, size_t responsel
             // there is a response payload, no matter success or not.
             // appendPrintBuf("function 2 >>>>>",
             //     pRI->token, requestToString(pRI->pCI->requestNumber));
-            printf("function 2 >>>>>\n",pRI->token, requestToString(pRI->pCI->requestNumber));
+            printf("function 2 >>>>>%d, %s\n",pRI->token, requestToString(pRI->pCI->requestNumber));
             ret = pRI->pCI->responseFunction(p, response, responselen);
             /* if an error occurred, rewind and mark it */
             if (ret != 0) {
@@ -2830,7 +2831,7 @@ void RIL_onUnsolicitedResponse(int unsolResponse, void *data,
         timeReceived = elapsedRealtime();
     }
 
-    appendPrintBuf("[UNSL]< %s", requestToString(unsolResponse));
+    printf("[UNSL]< %s\n", requestToString(unsolResponse));
 
     Parcel p;
 
@@ -3109,7 +3110,11 @@ requestToString(int request) {
         case RIL_REQUEST_SET_SMSC_ADDRESS: return "SET_SMSC_ADDRESS";
         case RIL_REQUEST_REPORT_SMS_MEMORY_STATUS: return "REPORT_SMS_MEMORY_STATUS";
         case RIL_REQUEST_REPORT_STK_SERVICE_IS_RUNNING: return "REPORT_STK_SERVICE_IS_RUNNING";
-        case RIL_REQUEST_GET_PORT: return "RIL_REQUEST_GET_PORT";
+        case RIL_REQUEST_SUPPORT_PORTS: return "RIL_REQUEST_SUPPORT_PORTS";
+        case RIL_REQUEST_PSCS_BIND_STATE: return "RIL_REQUEST_PSCS_BIND_STATE";
+        case RIL_REQUEST_NDIS_DIAL: return "RIL_REQUEST_NDIS_DIAL";
+        case RIL_REQUEST_PDP_ADDR: return "RIL_REQUEST_PDP_ADDR";
+        case RIL_REQUEST_DHCP_INFO: return "RIL_REQUEST_DHCP_INFO";
         case RIL_UNSOL_RESPONSE_RADIO_STATE_CHANGED: return "UNSOL_RESPONSE_RADIO_STATE_CHANGED";
         case RIL_UNSOL_RESPONSE_CALL_STATE_CHANGED: return "UNSOL_RESPONSE_CALL_STATE_CHANGED";
         case RIL_UNSOL_RESPONSE_NETWORK_STATE_CHANGED: return "UNSOL_RESPONSE_NETWORK_STATE_CHANGED";
@@ -3140,7 +3145,7 @@ requestToString(int request) {
         case RIL_UNSOL_OEM_HOOK_RAW: return "UNSOL_OEM_HOOK_RAW";
         case RIL_UNSOL_RINGBACK_TONE: return "UNSOL_RINGBACK_TONE";
         case RIL_UNSOL_RESEND_INCALL_MUTE: return "UNSOL_RESEND_INCALL_MUTE";
-
+        case RIL_UNSOL_NDIS_DIAL: return "RIL_UNSOL_NDIS_DIAL";
         default: return "<unknown request>";
     }
 }
