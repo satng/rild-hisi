@@ -2739,6 +2739,9 @@ RIL_onRequestComplete(RIL_Token t, RIL_Errno e, void *response, size_t responsel
                 p.setDataPosition(errorOffset);
                 p.writeInt32 (ret);
             }
+        }else{
+                p.writeInt32 (0);
+                p.writeInt32 (0);
         }
 
         if (e != RIL_E_SUCCESS) {

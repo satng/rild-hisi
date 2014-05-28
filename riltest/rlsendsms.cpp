@@ -18,31 +18,9 @@ int s_send_at_fd;
 static pthread_t s_tid_reader;
 
 static pthread_mutex_t t_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t t_psbind_cond = PTHREAD_COND_INITIALIZER;
-static pthread_cond_t t_apn_cond = PTHREAD_COND_INITIALIZER;
-static pthread_cond_t t_pdp_cond = PTHREAD_COND_INITIALIZER;
-static pthread_cond_t t_dhcp_cond = PTHREAD_COND_INITIALIZER;
 
 struct timeval now;
 struct timespec outtime;
-
-static int g_dial_success = 0;
-
-
-#define BYTE0(d)	((d) & 0xFF)
-#define BYTE1(d)	(((d) >> 8) & 0xFF)
-#define BYTE2(d)	(((d)  >> 16) & 0xFF)
-#define BYTE3(d)	(((d) >> 24) & 0xFF)
-
-#define  DIAL_RESULT_FILE	"/data/dial_result"
-
-static uint32_t IpRawStrdupToHex(char *data)
-{
-	uint32_t  hex;
-	char *out_str = (char *)alloca(16);
-	sscanf(data, "%x", &hex);
-	return hex;
-}
 
 static char *
 strdupReadString(Parcel &p) {
@@ -242,43 +220,12 @@ static void *readerLoop(void *arg)
 	return NULL;
 }
 
-int ps_bind(void)
-{
-	Parcel p;
-	int err = 0;
-	printf("++++++++++ps_bind in\n");
-	p.writeInt32(RIL_REQUEST_PSCS_BIND_STATE);//request
-	if(1){
-		p.writeInt32(0);//token
-		p.writeInt32(1);//string count
-		writeStringToParcel(p,"?");	
-	}else{
-		p.writeInt32(1);//token
-		p.writeInt32(2);//string count
-		writeStringToParcel(p,"1");
-		writeStringToParcel(p,"3");
-	}
-	sendDataToRild(p);
-
-	gettimeofday(&now, NULL);
-	outtime.tv_sec = now.tv_sec + 5;
-	outtime.tv_nsec = now.tv_usec * 1000;
-	err = pthread_cond_timedwait(&t_psbind_cond, &t_mutex, &outtime);
-	if (err == ETIMEDOUT) {
-		printf("ps_bind timeout");
-		return ETIMEDOUT;
-	}
-	printf("++++++++++ps_bind out\n");
-	return 0;
-}
-
-// apn_connect(1, 1, "CMNET")
-int apn_connect(int pdpid, int connect, const char* apnname)
+int sendsms(const char *dest, const char* sms)
 {
 	Parcel p;
 	int err = 0;
 	char args[100];
-	printf("++++++++++apn_connect in\n");
+	printf("++++++++++sendsms in\n");
 	gettimeofday(&now, NULL);
 	outtime.tv_nsec = now.tv_usec * 1000;
 
@@ -309,66 +256,7 @@ int apn_connect(int pdpid, int connect, const char* apnname)
 	return 0;
 }
 
-int get_pdp_addr(void)
-{
-	Parcel p;
-	int err = 0;
-	printf("++++++++++get_pdp_addr in\n");
-	p.writeInt32(RIL_REQUEST_PDP_ADDR);//request
-	p.writeInt32(3);//token
-	p.writeInt32(0);//string count
-	sendDataToRild(p);
 
-	gettimeofday(&now, NULL);
-	outtime.tv_sec = now.tv_sec + 5;
-	outtime.tv_nsec = now.tv_usec * 1000;
-	err = pthread_cond_timedwait(&t_pdp_cond, &t_mutex, &outtime);
-	if (err == ETIMEDOUT) {
-		printf("get_pdp_addr timeout");
-		return ETIMEDOUT;
-	}
-	printf("++++++++++get_pdp_addr out\n");
-	return 0;
-}
-
-int get_dhcp_info(void)
-{
-	Parcel p;
-	int err = 0;
-	printf("++++++++++get_dhcp_info in\n");
-	p.setDataPosition(0);
-	p.writeInt32(RIL_REQUEST_DHCP_INFO);//request
-	p.writeInt32(4);//token
-	p.writeInt32(1);//string count
-	writeStringToParcel(p,"?");
-	sendDataToRild(p);
-
-	gettimeofday(&now, NULL);
-	outtime.tv_sec = now.tv_sec + 5;
-	outtime.tv_nsec = now.tv_usec * 1000;
-	err = pthread_cond_timedwait(&t_dhcp_cond, &t_mutex, &outtime);
-	if (err == ETIMEDOUT) {
-		printf("get_dhcp_info timeout");
-		return ETIMEDOUT;
-	}
-	printf("++++++++++get_dhcp_info out\n");
-	return 0;
-}
-
-int dial_up(void)
-{
-	ps_bind();
-	apn_connect(1, 0, "CMNET");
-	apn_connect(1, 1, "CMNET");
-	get_pdp_addr();
-	get_dhcp_info();
-	if(!g_dial_success){
-		printf("dial up Fail\n");
-		return -1;
-	}
-	printf("dial up OK\n");
-	return 0;
-}
 
 int main(int argc, char* argv[])
 {
@@ -419,7 +307,7 @@ int main(int argc, char* argv[])
 	if (ret < 0) {
 		perror ("pthread_create\n");
 	}
-	dial_up();
+	sendsms();
 	// pthread_join(s_tid_reader, &retval);
 	return 0;
 }

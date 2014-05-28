@@ -52,6 +52,7 @@ include $(CLEAR_VARS)
 LOCAL_C_INCLUDES :=$(LOCAL_PATH)/../include
 LOCAL_SRC_FILES:= \
     rldial.cpp
+
 LOCAL_SHARED_LIBRARIES := \
     libutils \
     libbinder \
